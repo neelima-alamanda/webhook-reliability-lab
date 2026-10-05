@@ -10,4 +10,6 @@ import java.util.List;
 public interface DeliveryAttemptRepository extends JpaRepository<DeliveryAttempt, Long> {
 
     List<DeliveryAttempt> findByEventId(Long eventId);
+
+    List<DeliveryAttempt> findByEventIdOrderByIdAsc(Long eventId);
 }
