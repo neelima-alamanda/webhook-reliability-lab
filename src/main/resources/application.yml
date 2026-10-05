@@ -27,3 +27,10 @@ jwt:
 webhook:
   late-threshold-seconds: ${WEBHOOK_LATE_THRESHOLD_SECONDS:300}
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+
