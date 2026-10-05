@@ -24,3 +24,6 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
+webhook:
+  late-threshold-seconds: ${WEBHOOK_LATE_THRESHOLD_SECONDS:300}
+
