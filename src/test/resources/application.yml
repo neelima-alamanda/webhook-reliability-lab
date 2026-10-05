@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: webhook-reliability-lab-test
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:webhook_lab}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:nilima@123neelima}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+    open-in-view: false
+
+jwt:
+  secret: ${JWT_SECRET:e55d87153d150050f0ba4ae8ec0c2344ed91f60cc2cb4dc5be1791d4680ea2b0}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+webhook:
+  late-threshold-seconds: ${WEBHOOK_LATE_THRESHOLD_SECONDS:300}

@@ -216,4 +216,66 @@ class WebhookIngestionServiceTest {
         verify(webhookEventService).createAndDeliverEvent(any(), any(), any());
         verify(webhookEventService).recordDuplicateAttempt(any(), eq("evt_test_101"), any(), contains("concurrent race"));
     }
+
+    @Test
+    @DisplayName("Should retry duplicate attempt recording if concurrent winner commit is momentarily pending")
+    void testConcurrentRaceCondition_withRetry() {
+        when(webhookSourceRepository.findById(1L)).thenReturn(Optional.of(sampleSource));
+        when(hmacService.verifySignature(validBytes, "dummy_secret", "valid_sig")).thenReturn(true);
+        when(webhookEventRepository.existsBySourceIdAndEventId(any(), eq("evt_test_101"))).thenReturn(false);
+
+        when(webhookEventService.createAndDeliverEvent(any(), any(), any()))
+                .thenThrow(new DataIntegrityViolationException("Duplicate entry '1-evt_test_101' for key 'uk_source_event'"));
+
+        WebhookEventResponse expectedResponse = new WebhookEventResponse(
+                10L, 1L, "evt_test_101", "res_order_55", 1L, "order.created",
+                LocalDateTime.parse("2026-10-05T12:00:00"), LocalDateTime.now(),
+                EventStatus.DELIVERED, "PENDING", 1L
+        );
+        // First attempt throws ResourceNotFoundException (commit in flight), second attempt succeeds
+        when(webhookEventService.recordDuplicateAttempt(any(), eq("evt_test_101"), any(), contains("concurrent race")))
+                .thenThrow(new ResourceNotFoundException("Event not committed yet"))
+                .thenReturn(expectedResponse);
+
+        WebhookEventResponse response = ingestionService.ingestWebhook(1L, "valid_sig", validBytes);
+
+        assertNotNull(response);
+        assertEquals("evt_test_101", response.eventId());
+        verify(webhookEventService, times(2)).recordDuplicateAttempt(any(), eq("evt_test_101"), any(), contains("concurrent race"));
+    }
+
+    @Test
+    @DisplayName("Should successfully ingest order.status_changed event with updated currentStatus")
+    void testOrderStatusChanged_updatesCurrentStatus() {
+        String statusChangedJson = """
+                {
+                    "eventId": "evt_status_change_1",
+                    "resourceId": "res_order_55",
+                    "sequence": 2,
+                    "type": "order.status_changed",
+                    "occurredAt": "2026-10-05T12:05:00",
+                    "currentStatus": "SHIPPED"
+                }
+                """;
+        byte[] statusBytes = statusChangedJson.getBytes(StandardCharsets.UTF_8);
+
+        when(webhookSourceRepository.findById(1L)).thenReturn(Optional.of(sampleSource));
+        when(hmacService.verifySignature(statusBytes, "dummy_secret", "valid_sig")).thenReturn(true);
+        when(webhookEventRepository.existsBySourceIdAndEventId(any(), eq("evt_status_change_1"))).thenReturn(false);
+
+        WebhookEventResponse expectedResponse = new WebhookEventResponse(
+                11L, 1L, "evt_status_change_1", "res_order_55", 2L, "order.status_changed",
+                LocalDateTime.parse("2026-10-05T12:05:00"), LocalDateTime.now(),
+                EventStatus.DELIVERED, "SHIPPED", 2L
+        );
+        when(webhookEventService.createAndDeliverEvent(any(), any(), any())).thenReturn(expectedResponse);
+
+        WebhookEventResponse response = ingestionService.ingestWebhook(1L, "valid_sig", statusBytes);
+
+        assertNotNull(response);
+        assertEquals("SHIPPED", response.currentStatus());
+        assertEquals(2L, response.sequence());
+        assertEquals("order.status_changed", response.type());
+        verify(webhookEventService).createAndDeliverEvent(any(), any(), any());
+    }
 }

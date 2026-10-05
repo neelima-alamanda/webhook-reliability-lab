@@ -88,12 +88,26 @@ public class WebhookIngestionService {
             return webhookEventService.createAndDeliverEvent(source.getId(), request, receivedAt);
         } catch (DataIntegrityViolationException ex) {
             // Concurrent request created the event in the race window
-            return webhookEventService.recordDuplicateAttempt(
-                    source.getId(),
-                    request.eventId(),
-                    receivedAt,
-                    "Duplicate delivery (concurrent race): event with id '" + request.eventId() + "' was concurrently processed"
-            );
+            return recordDuplicateWithRetry(source.getId(), request.eventId(), receivedAt);
         }
+    }
+
+    private WebhookEventResponse recordDuplicateWithRetry(Long sourceId, String eventId, LocalDateTime receivedAt) {
+        String details = "Duplicate delivery (concurrent race): event with id '" + eventId + "' was concurrently processed";
+        ResourceNotFoundException lastEx = null;
+        for (int i = 0; i < 5; i++) {
+            try {
+                return webhookEventService.recordDuplicateAttempt(sourceId, eventId, receivedAt, details);
+            } catch (ResourceNotFoundException e) {
+                lastEx = e;
+                try {
+                    Thread.sleep(25);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        throw lastEx != null ? lastEx : new ResourceNotFoundException("Webhook event not found with eventId: " + eventId);
     }
 }
