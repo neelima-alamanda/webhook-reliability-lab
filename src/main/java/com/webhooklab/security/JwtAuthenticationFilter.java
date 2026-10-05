@@ -51,12 +51,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            userRepository.findByUsername(username)
-                    .or(() -> userRepository.findByEmail(username))
+            userRepository.findByEmail(username)
+                    .or(() -> userRepository.findByUsername(username))
                     .ifPresent(user -> {
-                        if (jwtService.isTokenValid(jwt, user.getUsername())) {
+                        if (jwtService.isTokenValid(jwt, user.getEmail()) || jwtService.isTokenValid(jwt, user.getUsername())) {
                             UserDetails userDetails = User.builder()
-                                    .username(user.getUsername())
+                                    .username(user.getEmail())
                                     .password(user.getPassword())
                                     .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())))
                                     .build();
