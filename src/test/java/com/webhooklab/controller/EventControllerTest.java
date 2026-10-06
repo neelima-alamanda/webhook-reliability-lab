@@ -176,4 +176,36 @@ class EventControllerTest {
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Webhook event not found with id: 999"));
     }
+
+    @Test
+    @DisplayName("Invalid parameter type: GET /api/events?sourceId=abc returns 400 Bad Request")
+    void testGetEvents_invalidSourceIdParameterType_returns400() throws Exception {
+        mockMvc.perform(get("/api/events")
+                        .param("sourceId", "abc")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Invalid parameter: sourceId"));
+    }
+
+    @Test
+    @DisplayName("Invalid enum status: GET /api/events?status=NON_EXISTENT returns 400 Bad Request")
+    void testGetEvents_invalidStatusEnum_returns400() throws Exception {
+        mockMvc.perform(get("/api/events")
+                        .param("status", "NON_EXISTENT")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Invalid parameter: status"));
+    }
+
+    @Test
+    @DisplayName("Invalid path variable: GET /api/events/abc/attempts returns 400 Bad Request")
+    void testGetDeliveryAttempts_invalidIdPathVariable_returns400() throws Exception {
+        mockMvc.perform(get("/api/events/abc/attempts")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Invalid parameter: id"));
+    }
 }

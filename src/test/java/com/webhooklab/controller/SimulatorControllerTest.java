@@ -162,4 +162,38 @@ class SimulatorControllerTest {
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Webhook source not found with id: 999"));
     }
+
+    @Test
+    @DisplayName("Invalid scenario name throws IllegalArgumentException and returns 400 Bad Request")
+    void testSend_invalidScenario_returns400() throws Exception {
+        SimulatorRequest request = new SimulatorRequest(
+                1L, "evt_1", "res_1", 1L, "order.created",
+                LocalDateTime.now(), "PENDING", "INVALID_SCENARIO"
+        );
+
+        when(simulatorService.simulate(any(), eq("owner@example.com")))
+                .thenThrow(new IllegalArgumentException("Unknown simulator scenario: INVALID_SCENARIO"));
+
+        mockMvc.perform(post("/api/simulator/send")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Unknown simulator scenario: INVALID_SCENARIO"));
+    }
+
+    @Test
+    @DisplayName("Malformed JSON payload in simulator request returns 400 Bad Request")
+    void testSend_malformedJson_returns400() throws Exception {
+        String malformedJson = "{ \"sourceId\": 1, \"eventId\": }";
+
+        mockMvc.perform(post("/api/simulator/send")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(malformedJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Invalid or malformed JSON request body"));
+    }
 }
